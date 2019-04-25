@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace K911\Swoole\Bridge\Symfony\Bundle\DependencyInjection;
 
 use Doctrine\ORM\EntityManagerInterface;
+use Exception;
+use function extension_loaded;
+use function interface_exists;
 use K911\Swoole\Bridge\Doctrine\ORM\EntityManagerHandler;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\CloudFrontRequestFactory;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\RequestFactoryInterface;
@@ -25,15 +28,19 @@ use K911\Swoole\Server\Runtime\HMR\InotifyHMR;
 use K911\Swoole\Server\TaskHandler\TaskHandlerInterface;
 use K911\Swoole\Server\WorkerHandler\HMRWorkerStartHandler;
 use K911\Swoole\Server\WorkerHandler\WorkerStartHandlerInterface;
+use function mb_strtolower;
+use function str_replace;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Definition;
+use Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\YamlFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
+use function ucfirst;
 
 final class SwooleExtension extends Extension implements PrependExtensionInterface
 {
@@ -47,7 +54,7 @@ final class SwooleExtension extends Extension implements PrependExtensionInterfa
     /**
      * {@inheritdoc}
      *
-     * @throws \Exception
+     * @throws Exception
      */
     public function load(array $configs, ContainerBuilder $container): void
     {
@@ -65,7 +72,7 @@ final class SwooleExtension extends Extension implements PrependExtensionInterfa
 
         $this->registerHttpServer($config['http_server'], $container);
 
-        if (\interface_exists(TransportFactoryInterface::class)) {
+        if (interface_exists(TransportFactoryInterface::class)) {
             $this->registerSwooleServerTransportConfiguration($container);
         }
     }
@@ -74,7 +81,7 @@ final class SwooleExtension extends Extension implements PrependExtensionInterfa
      * @param array            $config
      * @param ContainerBuilder $container
      *
-     * @throws \Symfony\Component\DependencyInjection\Exception\ServiceNotFoundException
+     * @throws ServiceNotFoundException
      */
     private function registerHttpServer(array $config, ContainerBuilder $container): void
     {
@@ -123,6 +130,9 @@ final class SwooleExtension extends Extension implements PrependExtensionInterfa
                 ->addArgument(new Reference(AdvancedStaticFilesServer::class.'.inner'))
                 ->addArgument(new Reference(HttpServerConfiguration::class))
                 ->addTag('swoole_bundle.bootable_service')
+                ->setAutowired(true)
+                ->setAutoconfigured(true)
+                ->setPublic(false)
                 ->setDecoratedService(RequestHandlerInterface::class, null, -60);
         }
 
@@ -159,7 +169,9 @@ final class SwooleExtension extends Extension implements PrependExtensionInterfa
         }
 
         if ('inotify' === $hmr) {
-            $container->register(HotModuleReloaderInterface::class, InotifyHMR::class)
+            $container->autowire(HotModuleReloaderInterface::class, InotifyHMR::class)
+                ->setAutoconfigured(true)
+                ->setPublic(false)
                 ->addTag('swoole_bundle.bootable_service');
         }
 
@@ -172,7 +184,7 @@ final class SwooleExtension extends Extension implements PrependExtensionInterfa
 
     private function resolveAutoHMR(): string
     {
-        if (\extension_loaded('inotify')) {
+        if (extension_loaded('inotify')) {
             return 'inotify';
         }
 
@@ -204,10 +216,13 @@ final class SwooleExtension extends Extension implements PrependExtensionInterfa
             $container->register(TrustAllProxiesRequestHandler::class)
                 ->addArgument(new Reference(TrustAllProxiesRequestHandler::class.'.inner'))
                 ->addTag('swoole_bundle.bootable_service')
+                ->setAutowired(true)
+                ->setAutoconfigured(true)
+                ->setPublic(false)
                 ->setDecoratedService(RequestHandlerInterface::class, null, -10);
         }
 
-        if ($config['entity_manager_handler'] || (null === $config['entity_manager_handler'] && \interface_exists(EntityManagerInterface::class) && $this->isBundleLoaded($container, 'doctrine'))) {
+        if ($config['entity_manager_handler'] || (null === $config['entity_manager_handler'] && interface_exists(EntityManagerInterface::class) && $this->isBundleLoaded($container, 'doctrine'))) {
             $container->register(EntityManagerHandler::class)
                 ->addArgument(new Reference(EntityManagerHandler::class.'.inner'))
                 ->setAutowired(true)
@@ -246,8 +261,8 @@ final class SwooleExtension extends Extension implements PrependExtensionInterfa
     {
         $bundles = $container->getParameter('kernel.bundles');
 
-        $bundleNameOnly = \str_replace('bundle', '', \mb_strtolower($bundleName));
-        $fullBundleName = \ucfirst($bundleNameOnly).'Bundle';
+        $bundleNameOnly = str_replace('bundle', '', mb_strtolower($bundleName));
+        $fullBundleName = ucfirst($bundleNameOnly).'Bundle';
 
         return isset($bundles[$fullBundleName]);
     }
