@@ -11,6 +11,8 @@ use K911\Swoole\Bridge\Symfony\HttpFoundation\CloudFrontRequestFactory;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\RequestFactoryInterface;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\TrustAllProxiesRequestHandler;
 use K911\Swoole\Bridge\Symfony\HttpKernel\DebugHttpKernelRequestHandler;
+use K911\Swoole\Bridge\Symfony\RequestCycle\InitializerInterface;
+use K911\Swoole\Bridge\Symfony\RequestCycle\TerminatorInterface;
 use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskTransportFactory;
 use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskTransportHandler;
 use K911\Swoole\Server\Config\Socket;
@@ -55,6 +57,10 @@ final class SwooleExtension extends Extension
             ->addTag('swoole_bundle.bootable_service');
         $container->registerForAutoconfiguration(ConfiguratorInterface::class)
             ->addTag('swoole_bundle.server_configurator');
+        $container->registerForAutoconfiguration(InitializerInterface::class)
+            ->addTag('swoole_bundle.app_initializer');
+        $container->registerForAutoconfiguration(TerminatorInterface::class)
+            ->addTag('swoole_bundle.app_terminator');
 
         $config = $this->processConfiguration($configuration, $configs);
 
