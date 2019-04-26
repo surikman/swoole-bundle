@@ -99,7 +99,7 @@ class HttpServerConfiguration
     private function initializeSettings(array $init): void
     {
         $this->settings = [];
-        $cpuCores = \swoole_cpu_num();
+        $cpuCores = swoole_cpu_num();
 
         if (!isset($init[self::SWOOLE_HTTP_SERVER_CONFIG_REACTOR_COUNT])) {
             $init[self::SWOOLE_HTTP_SERVER_CONFIG_REACTOR_COUNT] = $cpuCores;
@@ -109,7 +109,7 @@ class HttpServerConfiguration
             $init[self::SWOOLE_HTTP_SERVER_CONFIG_WORKER_COUNT] = 2 * $cpuCores;
         }
 
-        if (\array_key_exists(self::SWOOLE_HTTP_SERVER_CONFIG_TASK_WORKER_COUNT, $init) && 'auto' === $init[self::SWOOLE_HTTP_SERVER_CONFIG_TASK_WORKER_COUNT]) {
+        if (array_key_exists(self::SWOOLE_HTTP_SERVER_CONFIG_TASK_WORKER_COUNT, $init) && 'auto' === $init[self::SWOOLE_HTTP_SERVER_CONFIG_TASK_WORKER_COUNT]) {
             $init[self::SWOOLE_HTTP_SERVER_CONFIG_TASK_WORKER_COUNT] = $cpuCores;
         }
 
@@ -243,7 +243,7 @@ class HttpServerConfiguration
         Assertion::true($this->existsPidFile(), 'Could not get pid file. It does not exists or server is not running in background.');
 
         /** @var string $contents */
-        $contents = \file_get_contents($this->getPidFile());
+        $contents = file_get_contents($this->getPidFile());
         Assertion::numeric($contents, 'Contents in pid file is not an integer or it is empty');
 
         return (int) $contents;
@@ -251,7 +251,7 @@ class HttpServerConfiguration
 
     public function existsPidFile(): bool
     {
-        return $this->hasPidFile() && \file_exists($this->getPidFile());
+        return $this->hasPidFile() && file_exists($this->getPidFile());
     }
 
     /**
@@ -312,8 +312,8 @@ class HttpServerConfiguration
         $swooleSettings = [];
         foreach ($this->settings as $key => $setting) {
             $swooleSettingKey = self::SWOOLE_HTTP_SERVER_CONFIGURATION[$key];
-            $swooleGetter = \sprintf('getSwoole%s', \str_replace('_', '', $swooleSettingKey));
-            if (\method_exists($this, $swooleGetter)) {
+            $swooleGetter = sprintf('getSwoole%s', str_replace('_', '', $swooleSettingKey));
+            if (method_exists($this, $swooleGetter)) {
                 $setting = $this->{$swooleGetter}();
             }
 
