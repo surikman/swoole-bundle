@@ -7,6 +7,8 @@ namespace K911\Swoole\Bridge\Symfony\Bundle\DependencyInjection;
 use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use K911\Swoole\Bridge\Doctrine\ORM\EntityManagersHandler;
+use K911\Swoole\Bridge\Symfony\Logging\ChannelFactory;
+use K911\Swoole\Bridge\Symfony\Logging\MasterLogger;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\CloudFrontRequestFactory;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\RequestFactoryInterface;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\TrustAllProxiesRequestHandler;
@@ -37,18 +39,30 @@ use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
+use Symfony\Component\HttpKernel\DependencyInjection\ConfigurableExtension;
 
-final class SwooleExtension extends Extension
+final class SwooleExtension extends ConfigurableExtension
 {
     /**
      * {@inheritdoc}
      *
      * @throws Exception
      */
-    public function load(array $configs, ContainerBuilder $container): void
+    public function loadInternal(array $mergedConfig, ContainerBuilder $container)
     {
-        $configuration = Configuration::fromTreeBuilder();
-        $loader = new YamlFileLoader($container, new FileLocator(__DIR__.'/../Resources/config'));
+        $mode                = $mergedConfig['mode'];
+        $swooleBundleEnabled = $mode === 'strict' || extension_loaded('swoole');
+
+        $container->setParameter('swoole_bundle.enabled', $swooleBundleEnabled);
+
+        // this is a hack to fulfill Symfony container conditions to use every env variable used in the config
+        $this->registerHttpServerParameters($mergedConfig['http_server'], $container);
+
+        if (!$swooleBundleEnabled) {
+            return;
+        }
+
+        $loader = new YamlFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'));
         $loader->load('services.yaml');
         $loader->load('commands.yaml');
 
@@ -61,9 +75,7 @@ final class SwooleExtension extends Extension
         $container->registerForAutoconfiguration(TerminatorInterface::class)
             ->addTag('swoole_bundle.app_terminator');
 
-        $config = $this->processConfiguration($configuration, $configs);
-
-        $this->registerHttpServer($config['http_server'], $container);
+        $this->registerHttpServer($mergedConfig['http_server'], $container);
 
         if (interface_exists(TransportFactoryInterface::class)) {
             $this->registerSwooleServerTransportConfiguration($container);
@@ -71,21 +83,34 @@ final class SwooleExtension extends Extension
     }
 
     /**
-     * @param array            $config
+     * @param array            $httpServerConfig
+     * @param ContainerBuilder $container
+     */
+    private function registerHttpServerParameters(array $httpServerConfig, ContainerBuilder $container): void
+    {
+        $container->setParameter('swoole.http_server.host', $httpServerConfig['host']);
+        $container->setParameter('swoole.http_server.port', $httpServerConfig['port']);
+        $container->setParameter('swoole.http_server.trusted_proxies', $httpServerConfig['trusted_proxies']);
+        $container->setParameter('swoole.http_server.trusted_hosts', $httpServerConfig['trusted_hosts']);
+        $container->setParameter('swoole.http_server.api.host', $httpServerConfig['api']['host']);
+        $container->setParameter('swoole.http_server.api.port', $httpServerConfig['api']['port']);
+    }
+
+    /**
+     * @param array            $httpServerConfig
      * @param ContainerBuilder $container
      *
      * @throws ServiceNotFoundException
      */
-    private function registerHttpServer(array $config, ContainerBuilder $container): void
+    private function registerHttpServer(array $httpServerConfig, ContainerBuilder $container): void
     {
-        $this->registerHttpServerServices($config['services'], $container);
+        $container->setParameter('swoole.http_server.trusted_proxies', $httpServerConfig['trusted_proxies']);
+        $container->setParameter('swoole.http_server.trusted_hosts', $httpServerConfig['trusted_hosts']);
+        $container->setParameter('swoole.http_server.api.host', $httpServerConfig['api']['host']);
+        $container->setParameter('swoole.http_server.api.port', $httpServerConfig['api']['port']);
 
-        $container->setParameter('swoole.http_server.trusted_proxies', $config['trusted_proxies']);
-        $container->setParameter('swoole.http_server.trusted_hosts', $config['trusted_hosts']);
-        $container->setParameter('swoole.http_server.api.host', $config['api']['host']);
-        $container->setParameter('swoole.http_server.api.port', $config['api']['port']);
-
-        $this->registerHttpServerConfiguration($config, $container);
+        $this->registerHttpServerServices($httpServerConfig, $container);
+        $this->registerHttpServerConfiguration($httpServerConfig, $container);
     }
 
     /**
@@ -153,9 +178,9 @@ final class SwooleExtension extends Extension
         }
 
         $container->getDefinition(HttpServerConfiguration::class)
-            ->addArgument(new Reference(Sockets::class))
-            ->addArgument($runningMode)
-            ->addArgument($settings);
+            ->replaceArgument('$sockets', new Reference(Sockets::class))
+            ->replaceArgument('$runningMode', $runningMode)
+            ->replaceArgument('$settings', $settings);
 
         $this->registerHttpServerHMR($hmr, $container);
     }
@@ -202,14 +227,16 @@ final class SwooleExtension extends Extension
     /**
      * Registers optional http server dependencies providing various features.
      *
-     * @param array            $config
+     * @param array            $httpServerConfig
      * @param ContainerBuilder $container
      */
-    private function registerHttpServerServices(array $config, ContainerBuilder $container): void
+    private function registerHttpServerServices(array $httpServerConfig, ContainerBuilder $container): void
     {
+        $servicesConfig = $httpServerConfig['services'];
+
         // RequestFactoryInterface
         // -----------------------
-        if ($config['cloudfront_proto_header_handler']) {
+        if ($servicesConfig['cloudfront_proto_header_handler']) {
             $container->register(CloudFrontRequestFactory::class)
                 ->addArgument(new Reference(CloudFrontRequestFactory::class.'.inner'))
                 ->setPublic(false)
@@ -218,7 +245,7 @@ final class SwooleExtension extends Extension
 
         // RequestHandlerInterface
         // -------------------------
-        if ($config['trust_all_proxies_handler']) {
+        if ($servicesConfig['trust_all_proxies_handler']) {
             $container->register(TrustAllProxiesRequestHandler::class)
                 ->addArgument(new Reference(TrustAllProxiesRequestHandler::class.'.inner'))
                 ->setPublic(false)
@@ -226,7 +253,7 @@ final class SwooleExtension extends Extension
                 ->addTag('swoole_bundle.bootable_service');
         }
 
-        if ($config['debug_handler'] || (null === $config['debug_handler'] && $this->isDebug($container))) {
+        if ($servicesConfig['debug_handler'] || (null === $servicesConfig['debug_handler'] && $this->isDebug($container))) {
             $container->register(DebugHttpKernelRequestHandler::class)
                 ->setArgument('$decorated', new Reference(DebugHttpKernelRequestHandler::class.'.inner'))
                 ->setArgument('$kernel', new Reference('kernel'))
@@ -242,6 +269,36 @@ final class SwooleExtension extends Extension
                 ->setPublic(false)
                 ->addTag('swoole_bundle.app_initializer')
                 ->addTag('swoole_bundle.app_terminator');
+        }
+
+        // Channel logger
+        if ($servicesConfig['channel_logger']) {
+            $container->setParameter('swoole_bundle.channel_logger', true);
+            $masterLoggerDef = $container->findDefinition(MasterLogger::class);
+            $masterLoggerDef->addTag('kernel.event_listener', [
+                'event' => 'console.command',
+                'method' => 'onInitialize',
+                'priority' => 1000000,
+            ]);
+            $masterLoggerDef->addTag('kernel.event_listener', [
+                'event' => 'console.terminate',
+                'method' => 'onTerminate',
+                'priority' => -1000000,
+            ]);
+
+            if (!isset($httpServerConfig['settings'])) {
+                return;
+            }
+
+            $settings = $httpServerConfig['settings'];
+            $workerCount = null;
+
+            if (isset($settings['worker_count'])) {
+                $workerCount = $settings['worker_count'];
+            }
+
+            $chFactoryDef = $container->findDefinition(ChannelFactory::class);
+            $chFactoryDef->replaceArgument('$workerCount', $workerCount);
         }
     }
 
