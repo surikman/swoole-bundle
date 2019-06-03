@@ -14,7 +14,6 @@ use K911\Swoole\Bridge\Symfony\HttpFoundation\RequestFactoryInterface;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\TrustAllProxiesRequestHandler;
 use K911\Swoole\Bridge\Symfony\HttpKernel\DebugHttpKernelRequestHandler;
 use K911\Swoole\Bridge\Symfony\RequestCycle\InitializerInterface;
-use K911\Swoole\Bridge\Symfony\RequestCycle\TerminatorInterface;
 use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskTransportFactory;
 use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskTransportHandler;
 use K911\Swoole\Server\Config\Socket;
@@ -40,6 +39,7 @@ use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 use Symfony\Component\Messenger\MessageBusInterface;
 use Symfony\Component\Messenger\Transport\TransportFactoryInterface;
 use Symfony\Component\HttpKernel\DependencyInjection\ConfigurableExtension;
+use Symfony\Contracts\Service\ResetInterface;
 
 final class SwooleExtension extends ConfigurableExtension
 {
@@ -72,8 +72,6 @@ final class SwooleExtension extends ConfigurableExtension
             ->addTag('swoole_bundle.server_configurator');
         $container->registerForAutoconfiguration(InitializerInterface::class)
             ->addTag('swoole_bundle.app_initializer');
-        $container->registerForAutoconfiguration(TerminatorInterface::class)
-            ->addTag('swoole_bundle.app_terminator');
 
         $this->registerHttpServer($mergedConfig['http_server'], $container);
 
@@ -262,13 +260,13 @@ final class SwooleExtension extends ConfigurableExtension
                 ->setDecoratedService(RequestHandlerInterface::class, null, -50);
         }
 
-        // InitializerInterface && TerminatorInterface
+        // InitializerInterface
         if (interface_exists(EntityManagerInterface::class) && $this->isBundleLoaded($container, 'doctrine')) {
             $container->register(EntityManagersHandler::class)
                 ->setArgument('$doctrineRegistry', new Reference('doctrine'))
                 ->setPublic(false)
                 ->addTag('swoole_bundle.app_initializer')
-                ->addTag('swoole_bundle.app_terminator');
+                ->addTag('kernel.reset', ['method' => 'reset']);
         }
 
         // Channel logger
