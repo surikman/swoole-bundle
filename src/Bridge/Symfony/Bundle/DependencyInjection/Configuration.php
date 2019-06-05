@@ -153,9 +153,6 @@ final class Configuration implements ConfigurationInterface
                                 ->booleanNode('entity_manager_handler')
                                     ->defaultNull()
                                 ->end()
-                                ->booleanNode('channel_logger')
-                                    ->defaultFalse()
-                                ->end()
                             ->end()
                         ->end() // drivers
                         ->arrayNode('settings')
