@@ -79,14 +79,12 @@ final class InotifyHMR implements HotModuleReloaderInterface, BootableInterface
      */
     public function tick(Server $server): void
     {
+        $this->watchFiles();
         $events = inotify_read($this->inotify);
 
         if (false !== $events) {
-            var_dump($events);
             $server->reload();
         }
-
-        $this->watchFiles();
     }
 
     /**
