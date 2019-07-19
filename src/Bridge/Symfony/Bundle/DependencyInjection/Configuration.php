@@ -153,6 +153,10 @@ final class Configuration implements ConfigurationInterface
                                 ->booleanNode('entity_manager_handler')
                                     ->defaultNull()
                                 ->end()
+                                ->booleanNode('blackfire_handler')
+                                    ->defaultNull()
+                                    ->treatNullLike(false)
+                                ->end()
                             ->end()
                         ->end() // drivers
                         ->arrayNode('settings')

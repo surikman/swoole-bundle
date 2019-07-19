@@ -9,11 +9,11 @@ use Doctrine\ORM\EntityManagerInterface;
 use Exception;
 use K911\Swoole\Bridge\Doctrine\DBAL\ConnectionsHandler;
 use K911\Swoole\Bridge\Doctrine\ORM\EntityManagersHandler;
-use K911\Swoole\Bridge\Symfony\Bundle\CacheWarmer\HmrAutoloadInitializerWarmer;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\CloudFrontRequestFactory;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\RequestFactoryInterface;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\TrustAllProxiesRequestHandler;
 use K911\Swoole\Bridge\Symfony\HttpKernel\DebugHttpKernelRequestHandler;
+use K911\Swoole\Bridge\Symfony\Profiling\BlackfireHandler;
 use K911\Swoole\Bridge\Symfony\RequestCycle\InitializerInterface;
 use K911\Swoole\Bridge\Symfony\RequestCycle\TerminatorInterface;
 use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskTransportFactory;
@@ -28,7 +28,6 @@ use K911\Swoole\Server\RequestHandler\RequestHandlerInterface;
 use K911\Swoole\Server\Runtime\BootableInterface;
 use K911\Swoole\Server\Runtime\HMR\HotModuleReloaderInterface;
 use K911\Swoole\Server\Runtime\HMR\InotifyHMR;
-use K911\Swoole\Server\Runtime\HMR\InotifyHmrFactory;
 use K911\Swoole\Server\Runtime\HMR\LoadedFiles;
 use K911\Swoole\Server\TaskHandler\TaskHandlerInterface;
 use K911\Swoole\Server\WorkerHandler\HMRWorkerStartHandler;
@@ -266,6 +265,13 @@ final class SwooleExtension extends ConfigurableExtension
                 ->setArgument('$container', new Reference('service_container'))
                 ->setPublic(false)
                 ->setDecoratedService(RequestHandlerInterface::class, null, -50);
+        }
+
+        if ($servicesConfig['blackfire_handler']) {echo 'xxx';
+            $container->register(BlackfireHandler::class)
+                ->setArgument('$decorated', new Reference(BlackfireHandler::class.'.inner'))
+                ->setPublic(false)
+                ->setDecoratedService(RequestHandlerInterface::class, null, -49);
         }
 
         // InitializerInterface && TerminatorInterface
