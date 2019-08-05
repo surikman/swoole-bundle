@@ -267,7 +267,7 @@ final class SwooleExtension extends ConfigurableExtension
                 ->setDecoratedService(RequestHandlerInterface::class, null, -50);
         }
 
-        if ($servicesConfig['blackfire_handler']) {echo 'xxx';
+        if ($servicesConfig['blackfire_handler']) {
             $container->register(BlackfireHandler::class)
                 ->setArgument('$decorated', new Reference(BlackfireHandler::class.'.inner'))
                 ->setPublic(false)
