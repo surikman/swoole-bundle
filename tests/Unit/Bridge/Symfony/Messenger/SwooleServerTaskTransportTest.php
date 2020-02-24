@@ -10,6 +10,7 @@ use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskSender;
 use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskTransport;
 use K911\Swoole\Server\Config\Socket;
 use K911\Swoole\Server\Config\Sockets;
+use K911\Swoole\Server\Config\WorkerEstimator;
 use K911\Swoole\Server\HttpServer;
 use K911\Swoole\Server\HttpServerConfiguration;
 use PHPStan\Testing\TestCase;
@@ -37,6 +38,6 @@ class SwooleServerTaskTransportTest extends TestCase
 
     private function makeHttpServerDummy(): HttpServer
     {
-        return new HttpServer(new HttpServerConfiguration(new Sockets(new Socket())));
+        return new HttpServer(new HttpServerConfiguration(new WorkerEstimator(), new Sockets(new Socket())));
     }
 }

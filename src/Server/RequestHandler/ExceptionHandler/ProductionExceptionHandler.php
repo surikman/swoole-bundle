@@ -10,6 +10,7 @@ use K911\Swoole\Bridge\Symfony\HttpFoundation\ResponseProcessorInterface;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Symfony\Component\ErrorHandler\ErrorHandler;
+use Symfony\Component\HttpFoundation\Request as HttpFoundationRequest;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\TerminableInterface;
 use Throwable;
@@ -35,11 +36,6 @@ final class ProductionExceptionHandler implements ExceptionHandlerInterface
      * @var ErrorHandler
      */
     private $errorHandler;
-
-    /**
-     * @var Callable
-     */
-    private $exceptionHandler;
 
     /**
      * @param HttpKernelInterface        $kernel
@@ -68,7 +64,7 @@ final class ProductionExceptionHandler implements ExceptionHandlerInterface
     public function handle(Request $request, Throwable $exception, Response $response): void
     {
         $httpFoundationRequest = $this->requestFactory->make($request);
-        $this->errorHandler->setExceptionHandler($this->getExceptionHandler());
+        $this->errorHandler->setExceptionHandler($this->getExceptionHandler($httpFoundationRequest));
         $httpFoundationResponse = $this->errorHandler->handleException($exception);
         $this->responseProcessor->process($httpFoundationResponse, $response);
 
@@ -78,26 +74,29 @@ final class ProductionExceptionHandler implements ExceptionHandlerInterface
     }
 
     /**
+     * @param HttpFoundationRequest $request
+     *
      * @return Callable
      */
-    private function getExceptionHandler(): Callable
+    private function getExceptionHandler(HttpFoundationRequest $request): Callable
     {
-        if ($this->exceptionHandler !== null) {
-            return $this->exceptionHandler;
-        }
+        $privateHandler = function (HttpKernelInterface $kernel, HttpFoundationRequest $request, Throwable $e) {
+            $masterRequest = $kernel->requestStack->getMasterRequest();
 
-        $privateHandler = function (HttpKernelInterface $kernel, Throwable $e) {
-            $request = $kernel->requestStack->getMasterRequest();
+            if (!$masterRequest) {
+                $masterRequest = $request;
+            }
+
             $type = HttpKernelInterface::MASTER_REQUEST;
 
-            return $kernel->handleThrowable($e, $request, $type);
+            return $kernel->handleThrowable($e, $masterRequest, $type);
         };
 
         $privateHandler = $privateHandler->bind($privateHandler, null, $this->kernel);
         $kernel = $this->kernel;
 
-        return $this->exceptionHandler = function(Throwable $e) use ($privateHandler, $kernel) {
-            return $privateHandler($kernel, $e);
+        return function(Throwable $e) use ($privateHandler, $kernel, $request) {
+            return $privateHandler($kernel, $request, $e);
         };
     }
 }
