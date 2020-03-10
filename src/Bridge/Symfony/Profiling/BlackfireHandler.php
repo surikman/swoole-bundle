@@ -9,6 +9,7 @@ declare(strict_types=1);
 namespace K911\Swoole\Bridge\Symfony\Profiling;
 
 use Blackfire\Client;
+use BlackfireProbe;
 use K911\Swoole\Server\RequestHandler\RequestHandlerInterface;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
@@ -24,11 +25,18 @@ final class BlackfireHandler implements RequestHandlerInterface
     private $decorated;
 
     /**
-     * @param RequestHandlerInterface $decorated
+     * @var BlackfireResponseProcessor
      */
-    public function __construct(RequestHandlerInterface $decorated)
+    private $responseProcessor;
+
+    /**
+     * @param RequestHandlerInterface    $decorated
+     * @param BlackfireResponseProcessor $responseProcessor
+     */
+    public function __construct(RequestHandlerInterface $decorated, BlackfireResponseProcessor $responseProcessor)
     {
         $this->decorated = $decorated;
+        $this->responseProcessor = $responseProcessor;
     }
 
     /**
@@ -37,16 +45,13 @@ final class BlackfireHandler implements RequestHandlerInterface
     public function handle(Request $request, Response $response): void
     {
         $enableProfiling = isset($request->header['x-blackfire-query']);
+        $probe = $enableProfiling ? new BlackfireProbe($request->header['x-blackfire-query']) : null;
 
-        if (!$enableProfiling) {
-            $this->decorated->handle($request, $response);
-
-            return;
+        if ($probe) {
+            $probe->enable();
         }
 
-        $blackfireClient = new Client();
-        $probe = $blackfireClient->createProbe();
+        $this->responseProcessor->registerProbe($probe);
         $this->decorated->handle($request, $response);
-        $blackfireClient->endProbe($probe);
     }
 }

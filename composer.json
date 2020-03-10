@@ -37,7 +37,7 @@
     },
     "require-dev": {
         "ext-inotify": "*",
-        "blackfire/php-sdk": "^1.18",
+        "blackfire/php-sdk": "^1.21",
         "doctrine/annotations": "^1.6",
         "doctrine/doctrine-bundle": "^1.10",
         "doctrine/doctrine-migrations-bundle": "^2.0",

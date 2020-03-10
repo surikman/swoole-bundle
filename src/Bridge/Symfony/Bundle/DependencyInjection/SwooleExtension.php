@@ -7,12 +7,14 @@ namespace K911\Swoole\Bridge\Symfony\Bundle\DependencyInjection;
 use Exception;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\CloudFrontRequestFactory;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\RequestFactoryInterface;
+use K911\Swoole\Bridge\Symfony\HttpFoundation\ResponseProcessorInterface;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\Session\SetSessionCookieEventListener;
 use K911\Swoole\Bridge\Symfony\HttpFoundation\TrustAllProxiesRequestHandler;
 use K911\Swoole\Bridge\Symfony\HttpKernel\DebugHttpKernelRequestHandler;
 use K911\Swoole\Bridge\Symfony\Profiling\BlackfireHandler;
 use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskTransportFactory;
 use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskTransportHandler;
+use K911\Swoole\Bridge\Symfony\Profiling\BlackfireResponseProcessor;
 use K911\Swoole\Server\Config\Socket;
 use K911\Swoole\Server\Config\Sockets;
 use K911\Swoole\Server\Configurator\ConfiguratorInterface;
@@ -346,8 +348,14 @@ final class SwooleExtension extends ConfigurableExtension
         }
 
         if ($servicesConfig['blackfire_handler']) {
+            $container->register(BlackfireResponseProcessor::class)
+                ->setArgument('$decorated', new Reference(sprintf("%s.inner", BlackfireResponseProcessor::class)))
+                ->setPublic(false)
+                ->setDecoratedService(ResponseProcessorInterface::class);
+
             $container->register(BlackfireHandler::class)
-                ->setArgument('$decorated', new Reference(BlackfireHandler::class.'.inner'))
+                ->setArgument('$decorated', new Reference(sprintf("%s.inner", BlackfireHandler::class)))
+                ->setArgument('$responseProcessor', new Reference(BlackfireResponseProcessor::class))
                 ->setPublic(false)
                 ->setDecoratedService(RequestHandlerInterface::class, null, -49);
         }
