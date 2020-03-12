@@ -18,6 +18,7 @@ swoole:
             debug_handler: true
             trust_all_proxies_handler: true
             blackfire_handler: true
+            blackfire_multi_request_handler: true
         settings:
             worker_count: 4
             reactor_count: 2

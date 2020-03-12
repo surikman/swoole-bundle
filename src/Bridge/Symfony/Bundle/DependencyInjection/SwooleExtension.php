@@ -14,7 +14,9 @@ use K911\Swoole\Bridge\Symfony\HttpKernel\DebugHttpKernelRequestHandler;
 use K911\Swoole\Bridge\Symfony\Profiling\BlackfireHandler;
 use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskTransportFactory;
 use K911\Swoole\Bridge\Symfony\Messenger\SwooleServerTaskTransportHandler;
+use K911\Swoole\Bridge\Symfony\Profiling\BlackfireMultiRequestHandler;
 use K911\Swoole\Bridge\Symfony\Profiling\BlackfireResponseProcessor;
+use K911\Swoole\Bridge\Symfony\Profiling\MultiRequestProfiler;
 use K911\Swoole\Server\Config\Socket;
 use K911\Swoole\Server\Config\Sockets;
 use K911\Swoole\Server\Configurator\ConfiguratorInterface;
@@ -249,6 +251,11 @@ final class SwooleExtension extends ConfigurableExtension
         $settings['serve_static'] = $static['strategy'];
         $settings['public_dir'] = $static['public_dir'];
 
+        if (isset($config['services']['blackfire_multi_request_handler'])) {
+            $settings['worker_count'] = 1;
+            $settings['reactor_count'] = 1;
+        }
+
         if ('auto' === $settings['log_level']) {
             $settings['log_level'] = $this->isDebug($container) ? 'debug' : 'notice';
         }
@@ -376,6 +383,18 @@ final class SwooleExtension extends ConfigurableExtension
             $container->register(BlackfireHandler::class)
                 ->setArgument('$decorated', new Reference(sprintf("%s.inner", BlackfireHandler::class)))
                 ->setArgument('$responseProcessor', new Reference(BlackfireResponseProcessor::class))
+                ->setPublic(false)
+                ->setDecoratedService(RequestHandlerInterface::class, null, -48);
+        }
+
+        if ($servicesConfig['blackfire_multi_request_handler']) {
+            $container->register(MultiRequestProfiler::class)
+                ->setArgument('$logger', new Reference('logger'))
+                ->setPublic(false);
+
+            $container->register(BlackfireMultiRequestHandler::class)
+                ->setArgument('$decorated', new Reference(sprintf("%s.inner", BlackfireMultiRequestHandler::class)))
+                ->setArgument('$profiler', new Reference(MultiRequestProfiler::class))
                 ->setPublic(false)
                 ->setDecoratedService(RequestHandlerInterface::class, null, -49);
         }

@@ -68,7 +68,20 @@ swoole:
             # this enables profiling using Blackfire (do not use in production)
             # see: \K911\Swoole\Bridge\Symfony\Profiling\BlackfireHandler
             # use HTTP HEADER x-blackfire-query with any value to enable profiling of the request
+            # the header can be automatically added by using the blackfire extension for Chrome:
+            # https://blackfire.io/docs/integrations/browsers/chrome
             blackfire_handler: true
+    
+            # this enables profiling of multiple requests after each other (might be useful for searching for memory leaks)
+            # to activate profiling, a request with the GET parameter 'blackfire_start' needs to be made,
+            # e.g. http://localhost/?blackfire_start=my_profile
+            # after that, you can make multiple requests...
+            # to stop profiling a new request has to be made, with the GET parameter 'blackfire_stop',
+            # e.g. http://localhost/?blackfire_stop
+            # after that, the blackfire profile will be uploaded to the blackfire servers, where you can inspect it
+            # IMPORTANT!!! with this handler turned on, the swoole worker count and reactor count will get overridden to 1,
+            # because the profiling needs to be ended in the same worker in which it has started
+            blackfire_multi_request_handler: true
         
         # swoole http server settings
         # see https://www.swoole.co.uk/docs/modules/swoole-server/configuration
