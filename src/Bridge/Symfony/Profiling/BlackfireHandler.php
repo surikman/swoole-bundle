@@ -8,7 +8,6 @@ declare(strict_types=1);
 
 namespace K911\Swoole\Bridge\Symfony\Profiling;
 
-use Blackfire\Client;
 use BlackfireProbe;
 use K911\Swoole\Server\RequestHandler\RequestHandlerInterface;
 use Swoole\Http\Request;

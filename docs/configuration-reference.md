@@ -88,6 +88,12 @@ swoole:
 
             buffer_output_size: 2097152
             # in bytes, 2097152b = 2 MiB
+  
+            # default 0, if set then swoole worker gets restarted after after max_request + rand(0, max_request_grace)
+            # requests
+            max_request: 100
+            # default max_request / 2, 
+            max_request_grace: 50
     messenger_workers:
         # messenger workers need to be enabled explicitly
         enabled: true

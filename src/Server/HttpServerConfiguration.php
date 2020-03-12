@@ -30,6 +30,8 @@ class HttpServerConfiguration
     private const SWOOLE_HTTP_SERVER_CONFIG_LOG_LEVEL = 'log_level';
     private const SWOOLE_HTTP_SERVER_CONFIG_PID_FILE = 'pid_file';
     private const SWOOLE_HTTP_SERVER_CONFIG_BUFFER_OUTPUT_SIZE = 'buffer_output_size';
+    private const SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST = 'max_request';
+    private const SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST_GRACE = 'max_request_grace';
 
     /**
      * @todo add more
@@ -49,6 +51,8 @@ class HttpServerConfiguration
         self::SWOOLE_HTTP_SERVER_CONFIG_PID_FILE => 'pid_file',
         self::SWOOLE_HTTP_SERVER_CONFIG_BUFFER_OUTPUT_SIZE => 'buffer_output_size',
         self::SWOOLE_HTTP_SERVER_CONFIG_TASK_WORKER_COUNT => 'task_worker_num',
+        self::SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST => 'max_request',
+        self::SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST_GRACE => 'max_request_grace',
     ];
 
     /**
@@ -230,6 +234,26 @@ class HttpServerConfiguration
         return $this->settings[self::SWOOLE_HTTP_SERVER_CONFIG_REACTOR_COUNT];
     }
 
+    public function hasMaxRequest(): bool
+    {
+        return isset($this->settings[self::SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST]);
+    }
+
+    public function getMaxRequest(): int
+    {
+        return $this->settings[self::SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST];
+    }
+
+    public function hasMaxRequestGrace(): bool
+    {
+        return isset($this->settings[self::SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST_GRACE]);
+    }
+
+    public function getMaxRequestGrace(): int
+    {
+        return $this->settings[self::SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST_GRACE];
+    }
+
     public function getServerSocket(): Socket
     {
         return $this->sockets->getServerSocket();
@@ -385,6 +409,8 @@ class HttpServerConfiguration
             case self::SWOOLE_HTTP_SERVER_CONFIG_TASK_WORKER_COUNT:
             case self::SWOOLE_HTTP_SERVER_CONFIG_REACTOR_COUNT:
             case self::SWOOLE_HTTP_SERVER_CONFIG_WORKER_COUNT:
+            case self::SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST:
+            case self::SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST_GRACE:
                 return (int) $value;
                 break;
             default:
@@ -427,6 +453,8 @@ class HttpServerConfiguration
             case self::SWOOLE_HTTP_SERVER_CONFIG_TASK_WORKER_COUNT:
             case self::SWOOLE_HTTP_SERVER_CONFIG_REACTOR_COUNT:
             case self::SWOOLE_HTTP_SERVER_CONFIG_WORKER_COUNT:
+            case self::SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST:
+            case self::SWOOLE_HTTP_SERVER_CONFIG_MAX_REQUEST_GRACE:
                 Assertion::integer($value, sprintf('Setting "%s" must be an integer.', $key));
                 Assertion::greaterThan($value, 0, 'Count value cannot be negative, "%s" provided.');
 

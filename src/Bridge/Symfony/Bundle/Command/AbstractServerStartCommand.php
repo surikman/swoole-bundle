@@ -237,6 +237,14 @@ abstract class AbstractServerStartCommand extends Command
             $rows[] = ['public_dir', $serverConfiguration->getPublicDir()];
         }
 
+        if ($this->serverConfiguration->hasMaxRequest()) {
+            $rows[] = ['max_request', $this->serverConfiguration->getMaxRequest()];
+        }
+
+        if ($this->serverConfiguration->hasMaxRequestGrace()) {
+            $rows[] = ['max_request_grace', $this->serverConfiguration->getMaxRequestGrace()];
+        }
+
         return $rows;
     }
 
